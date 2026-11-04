@@ -16,13 +16,13 @@ use Laravel\Mcp\Server\Attributes\Name;
 #[Description('Lista os animais ou dezenas que estão há mais tempo sem sair (atraso em dias e em extrações). É só uma contagem, o atraso não torna nada mais provável.')]
 class OverdueTool extends BichoTool
 {
-    public function __construct(private readonly DrawStatsService $stats) {}
+    public function __construct(private readonly DrawStatsService $drawStatsService) {}
 
     public function schema(JsonSchema $schema): array
     {
         return [
             'por' => $schema->string()->enum(['animal', 'dezena'])->description('Agrupar por animal (grupo) ou por dezena. Padrão: animal.'),
-            'premio' => $schema->integer()->min(1)->max(5)->description('Considerar só um prêmio (1 a 5). Omita para considerar todos.'),
+            'premio' => $schema->integer()->min(1)->max(10)->description('Considerar só um prêmio (1 a 10). Omita para considerar do 1º ao 5º.'),
             'limite' => $schema->integer()->min(1)->max(25)->description('Quantos itens devolver. Padrão: 10.'),
             'ate' => $schema->string()->description('Data final da análise no formato AAAA-MM-DD. Padrão: hoje.'),
         ];
@@ -32,7 +32,7 @@ class OverdueTool extends BichoTool
     {
         $request->validate([
             'por' => ['nullable', Rule::in(['animal', 'dezena'])],
-            'premio' => ['nullable', 'integer', 'between:1,5'],
+            'premio' => ['nullable', 'integer', 'between:1,10'],
             'limite' => ['nullable', 'integer', 'between:1,25'],
             'ate' => ['nullable', 'date_format:Y-m-d'],
         ]);
@@ -42,8 +42,8 @@ class OverdueTool extends BichoTool
         return Response::json([
             'ate' => $until->toDateString(),
             'agrupado_por' => $this->groupBy($request) === 'ten' ? 'dezena' : 'animal',
-            'premio' => $this->position($request) ?? 'todos',
-            'itens' => $this->stats->overdue($this->groupBy($request), $this->position($request), $until, (int) ($request->get('limite') ?? 10)),
+            'premio' => $this->position($request) ?? '1 a '.config('bicho.analysis.max_position'),
+            'itens' => $this->drawStatsService->overdue($this->groupBy($request), $this->position($request), $until, (int) ($request->get('limite') ?? 10)),
             'aviso' => self::NOTE,
         ]);
     }

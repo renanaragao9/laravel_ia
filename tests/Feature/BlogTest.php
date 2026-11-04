@@ -41,7 +41,7 @@ class BlogTest extends TestCase
             ->assertDontSee('Rascunho')
             ->assertDontSee('Agendado')
             ->assertSee('maiores de 18 anos')
-            ->assertSee('proibido no Brasil')
+            ->assertSee('Loteria Estadual do Ceará')
             ->assertSee(route('blog.show', 'recente'), false)
             ->assertSee('Cobra')
             ->assertSee('Elefante');

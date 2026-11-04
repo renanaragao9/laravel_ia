@@ -6,6 +6,7 @@ use App\Contracts\ResultSource;
 use App\Models\Draw;
 use App\Services\Draws\FetchDrawsService;
 use App\Services\Draws\HtmlTableResultSource;
+use App\Services\Draws\LoteceResultSource;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
@@ -25,7 +26,7 @@ class ResultSourceTest extends TestCase
     {
         parent::setUp();
 
-        config(['bicho.results.scraper.url' => 'https://resultados.test/{Y}/{m}/{d}']);
+        config(['bicho.results.driver' => 'html', 'bicho.results.scraper.url' => 'https://resultados.test/{Y}/{m}/{d}']);
     }
 
     public function test_parses_the_table_and_ignores_incomplete_rows(): void
@@ -78,8 +79,11 @@ class ResultSourceTest extends TestCase
         $source->fetch(Carbon::parse('2026-11-04'));
     }
 
-    public function test_the_container_resolves_the_html_source_for_the_contract(): void
+    public function test_the_container_resolves_the_source_from_the_configured_driver(): void
     {
         $this->assertInstanceOf(HtmlTableResultSource::class, app(ResultSource::class));
+
+        config(['bicho.results.driver' => 'lotece']);
+        $this->assertInstanceOf(LoteceResultSource::class, app(ResultSource::class));
     }
 }

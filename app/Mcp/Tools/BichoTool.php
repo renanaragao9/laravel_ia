@@ -24,7 +24,12 @@ abstract class BichoTool extends Tool
 
     protected function groupBy(Request $request): string
     {
-        return $request->get('por') === 'dezena' ? 'ten' : 'animal';
+        return match ($request->get('por')) {
+            'dezena' => 'ten',
+            'centena' => 'hundred',
+            'milhar' => 'thousand',
+            default => 'animal',
+        };
     }
 
     protected function position(Request $request): ?int

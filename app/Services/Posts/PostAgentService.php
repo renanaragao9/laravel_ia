@@ -17,14 +17,14 @@ use RuntimeException;
 class PostAgentService
 {
     public function __construct(
-        private readonly LlmClient $llm,
-        private readonly ToolGateway $tools,
-        private readonly RetrieveKnowledgeService $retrieve,
+        private readonly LlmClient $llmClient,
+        private readonly ToolGateway $toolGateway,
+        private readonly RetrieveKnowledgeService $retrieveKnowledgeService,
     ) {}
 
     public function run(CarbonInterface $date): array
     {
-        $style = $this->retrieve->run('guia de estilo tom estrutura regras editoriais do post', 2, [KnowledgeKind::Style->value, KnowledgeKind::Rules->value]);
+        $style = $this->retrieveKnowledgeService->run('guia de estilo tom estrutura regras editoriais do post', 2, [KnowledgeKind::Style->value, KnowledgeKind::Rules->value]);
 
         $messages = [
             ['role' => 'system', 'content' => $this->systemPrompt($style)],
@@ -36,11 +36,11 @@ class PostAgentService
         $model = (string) config('bicho.openrouter.model');
 
         try {
-            $definitions = $this->tools->tools();
+            $definitions = $this->toolGateway->tools();
             $final = null;
 
             for ($step = 0; $step < (int) config('bicho.openrouter.max_steps'); $step++) {
-                $response = $this->llm->chat($messages, $definitions);
+                $response = $this->llmClient->chat($messages, $definitions);
                 $this->account($response, $usage, $model);
 
                 if ($response->toolCalls === []) {
@@ -52,7 +52,7 @@ class PostAgentService
                 $messages[] = $response->message;
 
                 foreach ($response->toolCalls as $call) {
-                    $result = $this->tools->call($call->name, $call->arguments);
+                    $result = $this->toolGateway->call($call->name, $call->arguments);
                     $log['tool_calls'][] = ['name' => $call->name, 'arguments' => $call->arguments, 'result' => mb_substr($result, 0, 2500)];
                     $messages[] = ['role' => 'tool', 'tool_call_id' => $call->id, 'content' => $result];
                 }
@@ -60,7 +60,7 @@ class PostAgentService
 
             if ($final === null) {
                 $messages[] = ['role' => 'user', 'content' => 'Chega de consultas. Escreva agora o post final, somente com o JSON pedido.'];
-                $final = $this->llm->chat($messages);
+                $final = $this->llmClient->chat($messages);
                 $this->account($final, $usage, $model);
             }
 
@@ -69,12 +69,12 @@ class PostAgentService
             if ($parsed === null) {
                 $messages[] = $final->message;
                 $messages[] = ['role' => 'user', 'content' => 'Sua resposta não era um JSON válido. Responda somente com o JSON do formato pedido, sem texto antes ou depois.'];
-                $retry = $this->llm->chat($messages);
+                $retry = $this->llmClient->chat($messages);
                 $this->account($retry, $usage, $model);
                 $parsed = $this->parse((string) $retry->content);
             }
         } finally {
-            $this->tools->close();
+            $this->toolGateway->close();
         }
 
         if ($parsed === null) {
@@ -128,6 +128,8 @@ class PostAgentService
             'guesses' => [
                 'animals' => $this->animals((array) ($data['guesses']['animals'] ?? [])),
                 'tens' => $this->tens((array) ($data['guesses']['tens'] ?? [])),
+                'hundreds' => $this->digits((array) ($data['guesses']['hundreds'] ?? []), 3, 5),
+                'thousands' => $this->digits((array) ($data['guesses']['thousands'] ?? []), 4, 5),
             ],
         ];
     }
@@ -153,6 +155,21 @@ class PostAgentService
         return array_slice(array_values(array_unique($tens)), 0, 10);
     }
 
+    private function digits(array $values, int $length, int $max): array
+    {
+        $numbers = [];
+
+        foreach ($values as $value) {
+            $digits = preg_replace('/\D+/', '', (string) $value) ?? '';
+
+            if ($digits !== '' && strlen($digits) <= $length) {
+                $numbers[] = str_pad($digits, $length, '0', STR_PAD_LEFT);
+            }
+        }
+
+        return array_slice(array_values(array_unique($numbers)), 0, $max);
+    }
+
     private function account(LlmResponse $response, array &$usage, string &$model): void
     {
         $usage['prompt'] += $response->promptTokens;
@@ -165,14 +182,16 @@ class PostAgentService
         $guide = $style === [] ? '' : "\n\nDiretrizes editoriais recuperadas da base de conhecimento:\n".collect($style)->map(fn (array $chunk): string => '- '.$chunk['content'])->implode("\n");
 
         return <<<PROMPT
-Você é o colunista de um blog brasileiro de estatística e curiosidades sobre os resultados históricos do jogo do bicho. Escreva sempre em português do Brasil.
+Você é o colunista de um blog brasileiro de estatística e curiosidades sobre os resultados históricos da Lotece (Loteria Estadual do Ceará), com extrações de Manhã, Tarde, Tarde II e Noite e 10 prêmios por extração. Escreva sempre em português do Brasil.
 
 Você tem ferramentas (via MCP) para consultar o histórico e uma base de conhecimento. Use-as: nunca invente resultados, datas ou contagens. Todo número citado precisa ter vindo de uma ferramenta.
 
-Verdade acima de tudo: cada sorteio é aleatório e independente. Frequências e atrasos descrevem o passado e não preveem nada. Apresente os "palpites" apenas como curiosidade baseada em estatística, sem prometer ou sugerir ganho, sem citar casas de apostas, links ou valores. O conteúdo é para maiores de 18 anos e o jogo é proibido no Brasil; inclua esse aviso no fim do texto.
+Verdade acima de tudo: cada sorteio é aleatório e independente. Frequências e atrasos descrevem o passado e não preveem nada. Apresente os "palpites" apenas como curiosidade baseada em estatística, sem prometer ou sugerir ganho, sem citar casas de apostas, links ou valores. O conteúdo é para maiores de 18 anos; inclua no fim do texto o aviso de que o sorteio é aleatório, de que os resultados são da Lotece e de que se deve jogar com responsabilidade.
+
+O foco são os números da Lotece. Fale dos milhares, centenas e dezenas, e cite o animal (grupo) só como curiosidade secundária. O post precisa trazer números de 3 e 4 dígitos (centenas e milhares, como 1802). Use o histórico do mês e do ano para dar noção do comportamento dos números: dezenas, centenas e milhares que mais saíram, milhares que se repetiram e os milhares recentes do 1º prêmio. Nos palpites de milhares, prefira números cuja dezena final pertença aos animais destacados (a dezena é o fim do milhar: 1802 termina em 02, grupo 1).
 
 Quando terminar de consultar, responda SOMENTE com um JSON, sem texto fora dele, neste formato:
-{"title": "...", "excerpt": "resumo de até 200 caracteres", "body_markdown": "texto em Markdown com subtítulos ##", "guesses": {"animals": [números dos grupos, no máximo 5], "tens": ["dezenas com dois dígitos, no máximo 10"]}}{$guide}
+{"title": "...", "excerpt": "resumo de até 200 caracteres", "body_markdown": "texto em Markdown com subtítulos ##", "guesses": {"animals": [números dos grupos, no máximo 5], "tens": ["dezenas com dois dígitos, no máximo 10"], "hundreds": ["centenas com três dígitos, no máximo 5"], "thousands": ["milhares com quatro dígitos, como 1802, no máximo 5"]}}{$guide}
 PROMPT;
     }
 
@@ -180,6 +199,6 @@ PROMPT;
     {
         $day = $date->copy()->locale('pt_BR')->translatedFormat('l, d \\d\\e F \\d\\e Y');
 
-        return "Hoje é {$date->toDateString()} ({$day}). Escreva o post do dia. Antes de escrever, consulte: o resumo da base, os resultados mais recentes (ontem e anteontem), a frequência dos animais em 30 e em 365 dias, os mais atrasados, o perfil deste dia da semana, o histórico desta mesma data em anos anteriores e, na base de conhecimento, o significado popular dos animais que você pretende destacar.";
+        return "Hoje é {$date->toDateString()} ({$day}). Escreva o post do dia. Antes de escrever, consulte: o resumo da base, os resultados mais recentes (ontem e anteontem), a frequência dos animais em 30 e em 365 dias, o resumo do mês atual, do mês anterior e do ano (ferramenta resumo_do_periodo), a frequência de dezenas, centenas e milhares (parâmetro por) em 30 e em 365 dias, os mais atrasados, o perfil deste dia da semana, o histórico desta mesma data em anos anteriores e, na base de conhecimento, o significado popular dos animais que você pretende destacar.";
     }
 }

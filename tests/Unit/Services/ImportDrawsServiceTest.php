@@ -92,7 +92,7 @@ class ImportDrawsServiceTest extends TestCase
 
     public function test_invalid_rows_are_skipped_with_the_line_number(): void
     {
-        $path = $this->file('csv', "data;horario;premio;milhar\n31/02/2026;14:00;1;1111\n01/11/2026;14:00;9;1111\n01/11/2026;14:00;1;abc\n01/11/2026;14:00;1;12345\n02/11/2026;14:00;1;5555\n");
+        $path = $this->file('csv', "data;horario;premio;milhar\n31/02/2026;14:00;1;1111\n01/11/2026;14:00;11;1111\n01/11/2026;14:00;1;abc\n01/11/2026;14:00;1;12345\n02/11/2026;14:00;1;5555\n");
 
         $summary = app(ImportDrawsService::class)->run($path);
 

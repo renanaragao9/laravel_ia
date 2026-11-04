@@ -1,6 +1,6 @@
-# Laravel IA: blog diário de estatística do jogo do bicho
+# Laravel IA: blog diário de estatística da Lotece (Loteria Estadual do Ceará)
 
-Sistema que guarda o **histórico de resultados do jogo do bicho** e, todo dia, usa um **agente de IA** (LLM + MCP + RAG) para escrever um post de blog com a análise estatística do dia e uma curiosidade de "palpite". O post nasce como **rascunho**: você revisa no painel e só então publica.
+Sistema que guarda o **histórico de resultados da Lotece (Loteria Estadual do Ceará)** e, todo dia, usa um **agente de IA** (LLM + MCP + RAG) para escrever um post de blog com a análise estatística do dia e uma curiosidade de "palpite". O post nasce como **rascunho**: você revisa no painel e só então publica.
 
 - **Stack:** Laravel 13, PHP 8.3+, Filament 5 (painel), `laravel/mcp` (servidor e cliente MCP), OpenRouter (LLM), fila e agendador do Laravel.
 - **Blog público:** `/` · **Painel:** `/admin`
@@ -8,7 +8,7 @@ Sistema que guarda o **histórico de resultados do jogo do bicho** e, todo dia, 
 ## Leia isto primeiro
 
 - **Sorteio é aleatório.** Nenhum modelo prevê o que vai cair. O sistema faz estatística **descritiva** do passado (frequência, atraso, perfil por dia da semana, mesma data em outros anos) e os "palpites" são apresentados como **curiosidade**, nunca como previsão. Todo post leva um aviso fixo e o blog mostra o aviso no topo e no rodapé.
-- **Aspecto legal.** O jogo do bicho é contravenção penal no Brasil. Publicar estatística de resultados já divulgados é comum, mas **divulgar palpites** pode ser interpretado como incentivo ao jogo. O conteúdo é para maiores de 18 anos, não cita casas de apostas, links ou valores. **Confira com alguém da área jurídica antes de publicar.**
+- **Aspecto legal.** Os resultados são da Lotece, divulgados em lotece.com.br, e este projeto **não é um canal oficial** dela. Publicar estatística de resultados já divulgados é comum, mas **divulgar palpites** pode ser interpretado como incentivo ao jogo. O conteúdo é para maiores de 18 anos, não cita casas de apostas, links ou valores. **Confira com alguém da área jurídica antes de publicar.**
 - **A IA não inventa números:** as regras do agente exigem que todo número venha de uma ferramenta MCP, e o painel mostra, em cada rascunho, quais ferramentas foram consultadas. Mesmo assim, **revise sempre** antes de publicar.
 
 ## Como funciona
@@ -88,9 +88,24 @@ Em produção, o cron é: `* * * * * cd /caminho/do/projeto && php artisan sched
 | `OPENROUTER_MAX_STEPS` | Máximo de rodadas de ferramentas por post (padrão 8). |
 | `MCP_BICHO_URL` / `MCP_BICHO_TOKEN` | Opcionais. Se `MCP_BICHO_URL` estiver vazio, o agente inicia o servidor MCP localmente (stdio). Se definido, usa o servidor HTTP com o token. |
 | `RESULTS_DEFAULT_LOTTERY` | Loteria padrão ao importar planilhas sem a coluna `loteria`. |
-| `RESULTS_SCRAPER_*` | Coleta automática (veja abaixo). Desligada por padrão. |
+| `RESULTS_DRIVER` | `lotece` (padrão, Loteria Estadual do Ceará) ou `html` (raspagem genérica). |
+| `LOTECE_URL`, `LOTECE_DELAY_MS` | Endereço e pausa entre consultas do histórico (padrão 1000 ms). |
+| `ANALYSIS_MAX_POSITION` | Prêmios considerados nas análises (padrão 5; a Lotece sorteia 10). |
+| `RESULTS_SCRAPER_*` | Raspagem genérica (só com `RESULTS_DRIVER=html`). |
 
 ## Alimentando o histórico
+
+### Base inicial incluída
+
+`resources/data/resultados-2026-01-01_2026-11-03.xlsx` traz o histórico da Loteria Estadual do Ceará (Lotece) de 01/01 a 03/11/2026: 258 dias com sorteio, 1.025 extrações (Manhã, Tarde, Tarde II e Noite) e 10.250 linhas (10 prêmios por extração). Colunas: `data, loteria, horario, premio, milhar`. Domingos e feriados não têm sorteio. Para carregar num banco novo:
+
+```bash
+php artisan draws:import resources/data/resultados-2026-01-01_2026-11-03.xlsx
+```
+
+Reimportar é seguro: não duplica data, loteria e horário.
+
+Para gerar outro período a partir do site da Lotece: `php artisan draws:backfill 2026-03-01 2026-03-31` (veja a seção da Lotece abaixo).
 
 ### Importação de planilha (recomendado)
 
@@ -107,7 +122,19 @@ Aceita `.csv` (separador `;` ou `,`) e `.xlsx`. Dois formatos:
 
 Datas em `dd/mm/aaaa` ou `aaaa-mm-dd`. A milhar é completada com zeros (`12` vira `0012`). Reimportar **atualiza** os valores sem duplicar, e linhas inválidas são ignoradas com o número da linha no aviso. Um histórico de mais de 13 mil resultados importa em cerca de 5 segundos.
 
-### Coleta automática (opcional)
+### Lotece (Ceará): histórico e coleta diária
+
+Fonte padrão: https://lotece.com.br/resultados/ (não tem API JSON; lemos o HTML por data). Extrações: Manhã, Tarde, Tarde II e Noite, 10 prêmios cada.
+
+```bash
+php artisan draws:backfill                      # 1º de janeiro até ontem, gera um .xlsx em storage/app/private/exports
+php artisan draws:backfill 2026-03-01 2026-03-31 --xlsx=março.xlsx
+php artisan draws:backfill --import             # além do xlsx, grava no banco
+```
+
+Há 1 s de pausa entre consultas e cache por dia em `storage/app/private/draw-cache` (`--refresh` ignora). Dias sem sorteio (domingos/feriados) ficam vazios. Depois disso o agendador roda `draws:fetch` às 06:30 e 22:30 (ontem e hoje), seguido de `rag:train` e `posts:generate`.
+
+### Coleta por raspagem genérica (opcional)
 
 Lê uma tabela HTML de um site de resultados. É genérica e **precisa ser configurada para o site que você escolher**:
 

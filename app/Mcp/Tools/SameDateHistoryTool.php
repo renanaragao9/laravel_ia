@@ -15,7 +15,7 @@ use Laravel\Mcp\Server\Attributes\Name;
 #[Description('Mostra os resultados que saíram no mesmo dia e mês em anos anteriores.')]
 class SameDateHistoryTool extends BichoTool
 {
-    public function __construct(private readonly DrawStatsService $stats) {}
+    public function __construct(private readonly DrawStatsService $drawStatsService) {}
 
     public function schema(JsonSchema $schema): array
     {
@@ -37,7 +37,7 @@ class SameDateHistoryTool extends BichoTool
         return Response::json([
             'referencia' => $date->toDateString(),
             'anos' => (int) ($request->get('anos') ?? 10),
-            'historico' => $this->stats->sameDateHistory($date, (int) ($request->get('anos') ?? 10)),
+            'historico' => $this->drawStatsService->sameDateHistory($date, (int) ($request->get('anos') ?? 10)),
             'aviso' => self::NOTE,
         ]);
     }

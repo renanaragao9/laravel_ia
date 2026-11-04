@@ -32,7 +32,7 @@ class StoreDrawService
             $rows = [];
 
             foreach ($thousands as $position => $value) {
-                if ($position < 1 || $position > 5) {
+                if ($position < 1 || $position > Bicho::MAX_PRIZES) {
                     continue;
                 }
 

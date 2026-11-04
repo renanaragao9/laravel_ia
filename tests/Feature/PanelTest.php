@@ -109,7 +109,7 @@ class PanelTest extends TestCase
 
     public function test_the_fetch_action_only_exists_when_the_scraper_is_configured(): void
     {
-        config(['bicho.results.scraper.url' => null]);
+        config(['bicho.results.driver' => 'html', 'bicho.results.scraper.url' => null]);
         Livewire::test(ListDraws::class)->assertActionHidden('fetch');
 
         config(['bicho.results.scraper.url' => 'https://resultados.test/{date}']);
@@ -125,7 +125,7 @@ class PanelTest extends TestCase
 
     public function test_the_fetch_action_reports_source_errors(): void
     {
-        config(['bicho.results.scraper.url' => 'https://resultados.test/{date}']);
+        config(['bicho.results.driver' => 'html', 'bicho.results.scraper.url' => 'https://resultados.test/{date}']);
         Http::fake(['resultados.test/*' => Http::response('x', 500)]);
 
         Livewire::test(ListDraws::class)->callAction('fetch', ['date' => '2026-11-04'])->assertNotified('Falha na coleta');

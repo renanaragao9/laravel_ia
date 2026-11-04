@@ -10,32 +10,39 @@ use RuntimeException;
 
 class FetchDrawsCommand extends Command
 {
-    protected $signature = 'draws:fetch {date? : Data AAAA-MM-DD (padrão: hoje)}';
+    protected $signature = 'draws:fetch
+        {date? : Data AAAA-MM-DD (sem data, coleta hoje e ontem)}';
 
-    protected $description = 'Coleta os resultados do dia na fonte configurada';
+    protected $description = 'Coleta os resultados recentes na fonte configurada';
 
-    public function handle(ResultSource $source, FetchDrawsService $service): int
+    public function handle(ResultSource $resultSource, FetchDrawsService $fetchDrawsService): int
     {
-        if (! $source->isConfigured()) {
-            $this->warn('Coleta automática desligada: defina RESULTS_SCRAPER_URL para ativá-la.');
+        if (! $resultSource->isConfigured()) {
+            $this->warn('Coleta automática desligada: configure a fonte de resultados para ativá-la.');
 
             return self::SUCCESS;
         }
 
-        $date = $this->argument('date')
-            ? Carbon::createFromFormat('Y-m-d', (string) $this->argument('date'), (string) config('bicho.timezone'))
-            : Carbon::now((string) config('bicho.timezone'));
+        $timezone = (string) config('bicho.timezone');
+        $dates = $this->argument('date')
+            ? [Carbon::createFromFormat('Y-m-d', (string) $this->argument('date'), $timezone)->startOfDay()]
+            : [Carbon::now($timezone)->subDay()->startOfDay(), Carbon::now($timezone)->startOfDay()];
 
-        try {
-            $stored = $service->run($date->startOfDay());
-        } catch (RuntimeException $e) {
-            $this->error($e->getMessage());
+        $status = self::SUCCESS;
 
-            return self::FAILURE;
+        foreach ($dates as $date) {
+            try {
+                $stored = $fetchDrawsService->run($date);
+            } catch (RuntimeException $e) {
+                $this->error($e->getMessage());
+                $status = self::FAILURE;
+
+                continue;
+            }
+
+            $this->info("{$stored} sorteio(s) de {$date->toDateString()} gravado(s).");
         }
 
-        $this->info("{$stored} sorteio(s) de {$date->toDateString()} gravado(s).");
-
-        return self::SUCCESS;
+        return $status;
     }
 }

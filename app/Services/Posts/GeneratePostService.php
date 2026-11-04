@@ -16,8 +16,8 @@ use Illuminate\Support\Str;
 class GeneratePostService
 {
     public function __construct(
-        private readonly PostAgentService $agent,
-        private readonly TrainKnowledgeService $train,
+        private readonly PostAgentService $postAgentService,
+        private readonly TrainKnowledgeService $trainKnowledgeService,
     ) {}
 
     public function run(CarbonInterface $date, bool $force = false): Post
@@ -31,10 +31,10 @@ class GeneratePostService
         }
 
         if (! KnowledgeTerm::query()->exists()) {
-            $this->train->run();
+            $this->trainKnowledgeService->run();
         }
 
-        $draft = $this->agent->run($date);
+        $draft = $this->postAgentService->run($date);
 
         $attributes = [
             'post_date' => $date->toDateString(),

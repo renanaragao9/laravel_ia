@@ -12,7 +12,7 @@ class ImportDrawsCommand extends Command
 
     protected $description = 'Importa resultados do histórico de uma planilha';
 
-    public function handle(ImportDrawsService $service): int
+    public function handle(ImportDrawsService $importDrawsService): int
     {
         $path = (string) $this->argument('file');
 
@@ -23,7 +23,7 @@ class ImportDrawsCommand extends Command
         }
 
         try {
-            $summary = $service->run($path);
+            $summary = $importDrawsService->run($path);
         } catch (InvalidArgumentException $e) {
             $this->error($e->getMessage());
 

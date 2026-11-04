@@ -21,11 +21,17 @@ class OpenRouterClient implements LlmClient
             throw new RuntimeException('OPENROUTER_API_KEY não configurada.');
         }
 
+        $models = array_values(array_filter(array_map('trim', explode(',', (string) $config['model']))));
+
         $payload = [
-            'model' => $config['model'],
+            'model' => $models[0] ?? 'openrouter/auto',
             'messages' => $messages,
             'temperature' => $config['temperature'],
         ];
+
+        if (count($models) > 1) {
+            $payload['models'] = array_slice($models, 0, 3);
+        }
 
         if ($tools !== []) {
             $payload['tools'] = array_map(fn (array $tool): array => ['type' => 'function', 'function' => $tool], $tools);

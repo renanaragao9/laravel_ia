@@ -58,6 +58,14 @@ class PostInfolist
                         TextEntry::make('guess_tens')
                             ->label('Dezenas')
                             ->state(fn (Post $record) => implode(', ', $record->guesses['tens'] ?? []) ?: '-'),
+
+                        TextEntry::make('guess_hundreds')
+                            ->label('Centenas')
+                            ->state(fn (Post $record) => implode(', ', $record->guesses['hundreds'] ?? []) ?: '-'),
+
+                        TextEntry::make('guess_thousands')
+                            ->label('Milhares')
+                            ->state(fn (Post $record) => implode(', ', $record->guesses['thousands'] ?? []) ?: '-'),
                     ]),
 
                 Section::make('Como a IA chegou a este texto')

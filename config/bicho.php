@@ -19,8 +19,20 @@ return [
         'token' => env('MCP_BICHO_TOKEN'),
     ],
 
+    'analysis' => [
+        'max_position' => (int) env('ANALYSIS_MAX_POSITION', 5),
+    ],
+
     'results' => [
-        'default_lottery' => env('RESULTS_DEFAULT_LOTTERY', 'rio'),
+        'driver' => env('RESULTS_DRIVER', 'lotece'),
+        'default_lottery' => env('RESULTS_DEFAULT_LOTTERY', 'ce'),
+        'lotece' => [
+            'url' => env('LOTECE_URL', 'https://lotece.com.br/resultados/'),
+            'lottery' => env('LOTECE_LOTTERY', 'ce'),
+            'user_agent' => env('LOTECE_USER_AGENT', 'laravel-ia/1.0 (estatistica de resultados publicos)'),
+            'timeout' => (int) env('LOTECE_TIMEOUT', 30),
+            'delay_ms' => (int) env('LOTECE_DELAY_MS', 1000),
+        ],
         'scraper' => [
             'url' => env('RESULTS_SCRAPER_URL'),
             'rows_xpath' => env('RESULTS_SCRAPER_ROWS_XPATH', '//table//tr'),

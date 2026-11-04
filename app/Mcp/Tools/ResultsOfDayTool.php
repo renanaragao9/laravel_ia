@@ -15,7 +15,7 @@ use Laravel\Mcp\Server\Attributes\Name;
 #[Description('Devolve todos os resultados (extrações, prêmios, milhar, dezena e animal) de uma data.')]
 class ResultsOfDayTool extends BichoTool
 {
-    public function __construct(private readonly DrawStatsService $stats) {}
+    public function __construct(private readonly DrawStatsService $drawStatsService) {}
 
     public function schema(JsonSchema $schema): array
     {
@@ -31,7 +31,7 @@ class ResultsOfDayTool extends BichoTool
         ]);
 
         $date = $this->date($request, 'data');
-        $results = $this->stats->dayResults($date);
+        $results = $this->drawStatsService->dayResults($date);
 
         return Response::json([
             'data' => $date->toDateString(),

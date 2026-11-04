@@ -8,6 +8,8 @@ use Carbon\CarbonInterface;
 
 interface ResultSource
 {
+    public function name(): string;
+
     public function isConfigured(): bool;
 
     public function fetch(CarbonInterface $date): array;

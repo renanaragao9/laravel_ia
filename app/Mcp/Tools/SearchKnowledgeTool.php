@@ -17,7 +17,7 @@ use Laravel\Mcp\Server\Attributes\Name;
 #[Description('Busca na base de conhecimento (RAG) trechos sobre a tabela dos animais, significados populares, regras e termos do jogo, guia de estilo e posts anteriores.')]
 class SearchKnowledgeTool extends BichoTool
 {
-    public function __construct(private readonly RetrieveKnowledgeService $retrieve) {}
+    public function __construct(private readonly RetrieveKnowledgeService $retrieveKnowledgeService) {}
 
     public function schema(JsonSchema $schema): array
     {
@@ -37,7 +37,7 @@ class SearchKnowledgeTool extends BichoTool
             'tipos.*' => [Rule::in(array_map(fn (KnowledgeKind $kind) => $kind->value, KnowledgeKind::cases()))],
         ]);
 
-        $found = $this->retrieve->run($data['pergunta'], (int) ($data['limite'] ?? 4), $data['tipos'] ?? null);
+        $found = $this->retrieveKnowledgeService->run($data['pergunta'], (int) ($data['limite'] ?? 4), $data['tipos'] ?? null);
 
         return Response::json([
             'pergunta' => $data['pergunta'],

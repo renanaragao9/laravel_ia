@@ -13,6 +13,11 @@ use RuntimeException;
 
 class HtmlTableResultSource implements ResultSource
 {
+    public function name(): string
+    {
+        return 'scraper';
+    }
+
     public function isConfigured(): bool
     {
         return (string) config('bicho.results.scraper.url') !== '';

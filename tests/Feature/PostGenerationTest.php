@@ -46,17 +46,17 @@ class PostGenerationTest extends TestCase
         $this->assertNull($post->published_at);
         $this->assertSame('2026-11-04-palpites-de-quarta', $post->slug);
         $this->assertSame('Resumo curto', $post->excerpt);
-        $this->assertSame(['animals' => [9, 12], 'tens' => ['33', '45']], $post->guesses);
+        $this->assertSame(['animals' => [9, 12], 'tens' => ['33', '45'], 'hundreds' => [], 'thousands' => []], $post->guesses);
         $this->assertSame('fake/model', $post->model);
         $this->assertSame(100, $post->prompt_tokens);
         $this->assertStringContainsString('maiores de 18 anos', $post->body);
-        $this->assertStringContainsString('proibido no Brasil', $post->body);
+        $this->assertStringContainsString('Lotece', $post->body);
         $this->assertGreaterThan(0, KnowledgeTerm::count());
     }
 
     public function test_the_disclaimer_is_not_duplicated_when_the_model_already_wrote_it(): void
     {
-        $body = 'Conteúdo para maiores de 18 anos. O jogo é proibido no Brasil.';
+        $body = 'Conteúdo para maiores de 18 anos. Resultados da Lotece.';
 
         $this->assertSame($body, Disclaimer::ensureIn($body));
         $this->assertSame(1, substr_count(Disclaimer::ensureIn('texto'), '18 anos'));

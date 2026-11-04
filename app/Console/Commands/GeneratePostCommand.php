@@ -14,14 +14,14 @@ class GeneratePostCommand extends Command
 
     protected $description = 'Gera o rascunho do post do dia com o agente de IA (LLM + MCP + RAG)';
 
-    public function handle(GeneratePostService $service): int
+    public function handle(GeneratePostService $generatePostService): int
     {
         $date = $this->argument('date')
             ? Carbon::createFromFormat('Y-m-d', (string) $this->argument('date'), (string) config('bicho.timezone'))
             : Carbon::now((string) config('bicho.timezone'));
 
         try {
-            $post = $service->run($date->startOfDay(), (bool) $this->option('force'));
+            $post = $generatePostService->run($date->startOfDay(), (bool) $this->option('force'));
         } catch (PostAlreadyExistsException $e) {
             $this->warn($e->getMessage());
 

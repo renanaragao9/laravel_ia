@@ -50,7 +50,7 @@ class ConsoleCommandsTest extends TestCase
 
     public function test_draws_fetch_is_silent_when_unconfigured_and_stores_when_configured(): void
     {
-        config(['bicho.results.scraper.url' => null]);
+        config(['bicho.results.driver' => 'html', 'bicho.results.scraper.url' => null]);
         $this->artisan('draws:fetch')->expectsOutputToContain('desligada')->assertSuccessful();
 
         config(['bicho.results.scraper.url' => 'https://resultados.test/{date}']);
@@ -87,14 +87,12 @@ class ConsoleCommandsTest extends TestCase
 
     public function test_the_daily_pipeline_is_scheduled_in_the_right_order(): void
     {
-        $events = collect(app(Schedule::class)->events())->mapWithKeys(fn ($event) => [str_replace(["'", PHP_BINARY, base_path('artisan')], '', $event->command) => $event->expression]);
+        $events = collect(app(Schedule::class)->events());
 
-        $fetch = $events->first(fn ($expression, $command) => str_contains($command, 'draws:fetch'));
-        $train = $events->first(fn ($expression, $command) => str_contains($command, 'rag:train'));
-        $generate = $events->first(fn ($expression, $command) => str_contains($command, 'posts:generate'));
+        $expressions = fn (string $command) => $events->filter(fn ($event) => str_contains($event->command, $command))->map(fn ($event) => $event->expression)->values()->all();
 
-        $this->assertSame('30 6 * * *', $fetch);
-        $this->assertSame('50 6 * * *', $train);
-        $this->assertSame('0 7 * * *', $generate);
+        $this->assertEqualsCanonicalizing(['30 6 * * *', '30 22 * * *'], $expressions('draws:fetch'));
+        $this->assertSame(['50 6 * * *'], $expressions('rag:train'));
+        $this->assertSame(['0 7 * * *'], $expressions('posts:generate'));
     }
 }

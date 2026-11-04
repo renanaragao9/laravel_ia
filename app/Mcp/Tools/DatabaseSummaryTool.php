@@ -15,7 +15,7 @@ use Laravel\Mcp\Server\Attributes\Name;
 #[Description('Informa a data de hoje, o dia da semana, quantos sorteios e resultados existem e o intervalo de datas coberto pela base.')]
 class DatabaseSummaryTool extends BichoTool
 {
-    public function __construct(private readonly DrawStatsService $stats) {}
+    public function __construct(private readonly DrawStatsService $drawStatsService) {}
 
     public function schema(JsonSchema $schema): array
     {
@@ -33,7 +33,7 @@ class DatabaseSummaryTool extends BichoTool
         return Response::json([
             'hoje' => $now->toDateString(),
             'dia_da_semana' => $now->locale('pt_BR')->dayName,
-            'base' => $this->stats->totals(),
+            'base' => $this->drawStatsService->totals(),
         ]);
     }
 }

@@ -20,8 +20,8 @@ class GeneratePostJob implements ShouldQueue
         public readonly bool $force = false,
     ) {}
 
-    public function handle(GeneratePostService $service): void
+    public function handle(GeneratePostService $generatePostService): void
     {
-        $service->run(Carbon::parse($this->date, (string) config('bicho.timezone')), $this->force);
+        $generatePostService->run(Carbon::parse($this->date, (string) config('bicho.timezone')), $this->force);
     }
 }

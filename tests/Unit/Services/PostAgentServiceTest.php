@@ -133,6 +133,16 @@ class PostAgentServiceTest extends TestCase
         $this->assertSame(['33', '05', '07', '08', '09', '10', '11', '12', '13', '14'], $post['guesses']['tens']);
     }
 
+    public function test_hundred_and_thousand_guesses_are_sanitized(): void
+    {
+        $guesses = ['animals' => [], 'tens' => [], 'hundreds' => ['802', 12, 'abcd', '12345', '802'], 'thousands' => ['1802', '0050', 7, '99999', '1.802', 1, 2, 3, 4, 5]];
+
+        $post = $this->agent(new FakeLlm([FakeLlm::text(FakeLlm::post('T', 'corpo', $guesses))]))->run(Carbon::parse('2026-11-04'));
+
+        $this->assertSame(['802', '012'], $post['guesses']['hundreds']);
+        $this->assertSame(['1802', '0050', '0007', '0001', '0002'], $post['guesses']['thousands']);
+    }
+
     public function test_rejects_posts_without_title_or_body(): void
     {
         $this->assertNull(app(PostAgentService::class)->parse('{"title":"","body_markdown":"x"}'));

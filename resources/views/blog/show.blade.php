@@ -10,7 +10,7 @@
 
         {!! \Illuminate\Support\Str::markdown($post->body, ['html_input' => 'strip', 'allow_unsafe_links' => false]) !!}
 
-        @if (! empty($post->guesses['animals']) || ! empty($post->guesses['tens']))
+        @if (! empty($post->guesses['animals']) || ! empty($post->guesses['tens']) || ! empty($post->guesses['hundreds']) || ! empty($post->guesses['thousands']))
             <div class="box">
                 <h3>Palpites do dia (só curiosidade)</h3>
                 @if (! empty($post->guesses['animals']))
@@ -27,6 +27,15 @@
                         @endforeach
                     </div>
                 @endif
+                @foreach (['hundreds', 'thousands'] as $kind)
+                    @if (! empty($post->guesses[$kind]))
+                        <div class="chips">
+                            @foreach ($post->guesses[$kind] as $number)
+                                <span class="chip">{{ $number }}</span>
+                            @endforeach
+                        </div>
+                    @endif
+                @endforeach
                 <p class="meta" style="margin:10px 0 0">Gerado a partir de estatística do histórico. O sorteio é aleatório: isto não aumenta a chance de acerto.</p>
             </div>
         @endif

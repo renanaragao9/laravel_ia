@@ -20,7 +20,7 @@ class DrawStatsService
         $query = $this->window($until->copy()->subDays($days - 1), $until, $position, $lottery);
 
         $total = (clone $query)->count();
-        $column = $by === 'ten' ? 'draw_results.ten' : 'draw_results.animal_number';
+        $column = $this->column($by);
 
         $rows = $query
             ->selectRaw("{$column} as item, count(*) as total")
@@ -41,7 +41,7 @@ class DrawStatsService
     public function overdue(string $by = 'animal', ?int $position = null, ?CarbonInterface $until = null, int $limit = 10, ?string $lottery = null): array
     {
         $until = $this->day($until);
-        $column = $by === 'ten' ? 'draw_results.ten' : 'draw_results.animal_number';
+        $column = $this->column($by);
 
         $query = $this->base($position, $lottery)->where('draws.drawn_on', '<=', $until->toDateString());
 
@@ -88,7 +88,7 @@ class DrawStatsService
             ->whereRaw($this->weekdayExpression().' = ?', [$weekday]);
 
         $total = (clone $query)->count();
-        $column = $by === 'ten' ? 'draw_results.ten' : 'draw_results.animal_number';
+        $column = $this->column($by);
 
         return $query
             ->selectRaw("{$column} as item, count(*) as total")
@@ -104,6 +104,45 @@ class DrawStatsService
                 'share' => $total === 0 ? 0.0 : round(((int) $row->total / $total) * 100, 2),
             ])
             ->all();
+    }
+
+    public function periodSummary(CarbonInterface $from, CarbonInterface $until, ?int $position = null, int $limit = 10, ?string $lottery = null): array
+    {
+        $window = fn () => $this->window($from, $until, $position, $lottery);
+        $top = function (string $by, int $minimum = 1) use ($window, $limit): array {
+            $column = $this->column($by);
+
+            return $window()
+                ->selectRaw("{$column} as item, count(*) as total")
+                ->groupBy($column)
+                ->havingRaw('count(*) >= ?', [$minimum])
+                ->orderByDesc('total')
+                ->orderBy('item')
+                ->limit($limit)
+                ->get()
+                ->map(fn ($row): array => ['key' => (string) $row->item, 'label' => $this->label($by, (string) $row->item), 'count' => (int) $row->total])
+                ->all();
+        };
+
+        $firstPrize = $this->window($from, $until, 1, $lottery)
+            ->orderByDesc('draws.drawn_on')
+            ->orderByDesc('draws.draw_time')
+            ->limit($limit)
+            ->get(['draws.drawn_on', 'draws.draw_time', 'draw_results.thousand'])
+            ->map(fn ($row): array => ['date' => Carbon::parse($row->drawn_on)->toDateString(), 'time' => $row->draw_time, 'thousand' => (string) $row->thousand])
+            ->all();
+
+        return [
+            'from' => $from->toDateString(),
+            'until' => $until->toDateString(),
+            'draws' => (int) $this->window($from, $until, $position, $lottery)->distinct()->count('draws.id'),
+            'results' => (int) $window()->count(),
+            'top_animals' => $top('animal'),
+            'top_tens' => $top('ten'),
+            'top_hundreds' => $top('hundred', 2),
+            'repeated_thousands' => $top('thousand', 2),
+            'latest_first_prize_thousands' => $firstPrize,
+        ];
     }
 
     public function sameDateHistory(CarbonInterface $date, int $years = 10): array
@@ -167,7 +206,7 @@ class DrawStatsService
             ->join('draws', 'draws.id', '=', 'draw_results.draw_id')
             ->whereNull('draw_results.deleted_at')
             ->whereNull('draws.deleted_at')
-            ->when($position, fn ($q) => $q->where('draw_results.position', $position))
+            ->when($position, fn ($q) => $q->where('draw_results.position', $position), fn ($q) => $q->where('draw_results.position', '<=', (int) config('bicho.analysis.max_position')))
             ->when($lottery, fn ($q) => $q->where('draws.lottery', $lottery));
     }
 
@@ -187,10 +226,20 @@ class DrawStatsService
         };
     }
 
+    private function column(string $by): string
+    {
+        return match ($by) {
+            'ten' => 'draw_results.ten',
+            'hundred' => 'draw_results.hundred',
+            'thousand' => 'draw_results.thousand',
+            default => 'draw_results.animal_number',
+        };
+    }
+
     private function label(string $by, string $key): string
     {
-        if ($by === 'ten') {
-            return $key.' ('.Bicho::animalName(Bicho::animalNumber($key)).')';
+        if ($by !== 'animal') {
+            return $key.' ('.Bicho::animalName(Bicho::animalNumber(substr($key, -2))).')';
         }
 
         return (int) $key.' - '.Bicho::animalName((int) $key);

@@ -10,16 +10,16 @@ use Carbon\CarbonInterface;
 class FetchDrawsService
 {
     public function __construct(
-        private readonly ResultSource $source,
-        private readonly StoreDrawService $store,
+        private readonly ResultSource $resultSource,
+        private readonly StoreDrawService $storeDrawService,
     ) {}
 
     public function run(CarbonInterface $date): int
     {
         $stored = 0;
 
-        foreach ($this->source->fetch($date) as $draw) {
-            $this->store->run($date, $draw['lottery'], $draw['time'], $draw['thousands'], 'scraper');
+        foreach ($this->resultSource->fetch($date) as $draw) {
+            $this->storeDrawService->run($date, $draw['lottery'], $draw['time'], $draw['thousands'], $this->resultSource->name());
             $stored++;
         }
 

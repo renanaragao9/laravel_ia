@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Draws;
 
+use App\Support\Bicho\Bicho;
 use Carbon\Carbon;
 use DateTimeInterface;
 use Illuminate\Support\Facades\DB;
@@ -15,7 +16,7 @@ class ImportDrawsService
 {
     public const MAX_ROWS = 200000;
 
-    public function __construct(private readonly StoreDrawService $store) {}
+    public function __construct(private readonly StoreDrawService $storeDrawService) {}
 
     public function run(string $path, ?string $extension = null): array
     {
@@ -91,7 +92,7 @@ class ImportDrawsService
         foreach (array_chunk($groups, 500) as $batch) {
             DB::transaction(function () use ($batch, &$summary): void {
                 foreach ($batch as $group) {
-                    $this->store->run($group['date'], $group['lottery'], $group['time'], $group['thousands'], 'import');
+                    $this->storeDrawService->run($group['date'], $group['lottery'], $group['time'], $group['thousands'], 'import');
                     $summary['draws']++;
                     $summary['results'] += count($group['thousands']);
                 }
@@ -152,8 +153,8 @@ class ImportDrawsService
             'horario' => 'time', 'hora' => 'time', 'time' => 'time', 'extracao' => 'time',
             'premio' => 'prize', 'posicao' => 'prize', 'prize' => 'prize',
             'milhar' => 'thousand', 'resultado' => 'thousand', 'thousand' => 'thousand',
-            'p1' => 'p1', 'p2' => 'p2', 'p3' => 'p3', 'p4' => 'p4', 'p5' => 'p5',
-            '1' => 'p1', '2' => 'p2', '3' => 'p3', '4' => 'p4', '5' => 'p5',
+            'p1' => 'p1', 'p2' => 'p2', 'p3' => 'p3', 'p4' => 'p4', 'p5' => 'p5', 'p6' => 'p6', 'p7' => 'p7', 'p8' => 'p8', 'p9' => 'p9', 'p10' => 'p10',
+            '1' => 'p1', '2' => 'p2', '3' => 'p3', '4' => 'p4', '5' => 'p5', '6' => 'p6', '7' => 'p7', '8' => 'p8', '9' => 'p9', '10' => 'p10',
         ];
 
         $map = [];
@@ -174,7 +175,7 @@ class ImportDrawsService
     {
         $columns = [];
 
-        foreach (range(1, 5) as $position) {
+        foreach (range(1, Bicho::MAX_PRIZES) as $position) {
             if (isset($header["p{$position}"])) {
                 $columns[$position] = $header["p{$position}"];
             }
@@ -215,8 +216,8 @@ class ImportDrawsService
     {
         $position = (int) preg_replace('/\D+/', '', (string) $value);
 
-        if ($position < 1 || $position > 5) {
-            throw new InvalidArgumentException('prêmio inválido ('.(string) $value.'), use de 1 a 5');
+        if ($position < 1 || $position > Bicho::MAX_PRIZES) {
+            throw new InvalidArgumentException('prêmio inválido ('.(string) $value.'), use de 1 a '.Bicho::MAX_PRIZES);
         }
 
         return $position;

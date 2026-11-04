@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>@yield('title', config('app.name'))</title>
-    <meta name="description" content="@yield('description', 'Estatística e curiosidades sobre os resultados históricos do jogo do bicho.')">
+    <meta name="description" content="@yield('description', 'Estatística e curiosidades sobre os resultados históricos da Lotece, a Loteria Estadual do Ceará.')">
     <meta name="robots" content="index, follow">
     <style>
         :root { --bg: #f6f5f1; --card: #ffffff; --text: #1c1917; --muted: #78716c; --border: #e7e5e4; --primary: #b45309; --soft: #fef3c7; }
@@ -37,7 +37,7 @@
     </style>
 </head>
 <body>
-<div class="notice"><strong>Conteúdo para maiores de 18 anos.</strong> Estatística e curiosidade sobre resultados já divulgados. O sorteio é aleatório e nenhum palpite garante resultado.</div>
+<div class="notice"><strong>Conteúdo para maiores de 18 anos.</strong> Estatística e curiosidade sobre resultados já divulgados pela Lotece (Loteria Estadual do Ceará). O sorteio é aleatório e nenhum palpite garante resultado.</div>
 <header class="site">
     <a href="{{ route('blog.index') }}"><h1>{{ config('app.name') }}</h1></a>
     <p>O que dizem os números do histórico do dia, sem promessas.</p>

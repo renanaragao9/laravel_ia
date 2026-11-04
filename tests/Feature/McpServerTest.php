@@ -7,6 +7,7 @@ use App\Mcp\Tools\AnimalLookupTool;
 use App\Mcp\Tools\DatabaseSummaryTool;
 use App\Mcp\Tools\FrequencyTool;
 use App\Mcp\Tools\OverdueTool;
+use App\Mcp\Tools\PeriodSummaryTool;
 use App\Mcp\Tools\ResultsOfDayTool;
 use App\Mcp\Tools\SameDateHistoryTool;
 use App\Mcp\Tools\SearchKnowledgeTool;
@@ -44,12 +45,12 @@ class McpServerTest extends TestCase
         $tools = collect($this->postJson('/mcp/bicho', ['jsonrpc' => '2.0', 'id' => 2, 'method' => 'tools/list'], $headers)->assertOk()->json('result.tools'));
 
         $this->assertEqualsCanonicalizing(
-            ['resumo_da_base', 'resultados_do_dia', 'frequencia', 'atrasados', 'perfil_dia_da_semana', 'historico_mesma_data', 'consultar_animal', 'buscar_conhecimento'],
+            ['resumo_da_base', 'resultados_do_dia', 'frequencia', 'atrasados', 'perfil_dia_da_semana', 'historico_mesma_data', 'consultar_animal', 'buscar_conhecimento', 'resumo_do_periodo'],
             $tools->pluck('name')->all(),
         );
         $this->assertTrue($tools->every(fn (array $tool) => $tool['description'] !== '' && isset($tool['inputSchema'])));
 
-        foreach (['resumo_da_base', 'resultados_do_dia', 'frequencia', 'atrasados', 'perfil_dia_da_semana', 'historico_mesma_data', 'consultar_animal', 'buscar_conhecimento'] as $name) {
+        foreach (['resumo_da_base', 'resultados_do_dia', 'frequencia', 'atrasados', 'perfil_dia_da_semana', 'historico_mesma_data', 'consultar_animal', 'buscar_conhecimento', 'resumo_do_periodo'] as $name) {
             BichoServer::tool(match ($name) {
                 'resumo_da_base' => DatabaseSummaryTool::class,
                 'resultados_do_dia' => ResultsOfDayTool::class,
@@ -59,6 +60,7 @@ class McpServerTest extends TestCase
                 'historico_mesma_data' => SameDateHistoryTool::class,
                 'consultar_animal' => AnimalLookupTool::class,
                 'buscar_conhecimento' => SearchKnowledgeTool::class,
+                'resumo_do_periodo' => PeriodSummaryTool::class,
             }, $name === 'buscar_conhecimento' ? ['pergunta' => 'milhar'] : [])->assertName($name);
         }
     }
@@ -94,12 +96,26 @@ class McpServerTest extends TestCase
         BichoServer::tool(SameDateHistoryTool::class, ['data' => '2026-11-10', 'anos' => 3])->assertOk()->assertSee(['2025-11-10', '0050']);
     }
 
+    public function test_frequency_groups_by_hundred_and_thousand_and_the_period_summary_covers_month_and_year(): void
+    {
+        $this->draw('2026-11-08', [1 => '7345'], '14:00');
+        $this->draw('2026-03-02', [1 => '1802', 2 => '1802'], '14:00');
+
+        BichoServer::tool(FrequencyTool::class, ['dias' => 30, 'por' => 'milhar', 'premio' => 1])->assertOk()->assertSee(['7345 (', 'milhar']);
+        BichoServer::tool(FrequencyTool::class, ['dias' => 30, 'por' => 'centena', 'premio' => 1])->assertOk()->assertSee('345 (');
+
+        BichoServer::tool(PeriodSummaryTool::class, ['periodo' => 'mes'])->assertOk()->assertSee(['2026-11-01', '7345', 'top_hundreds', 'repeated_thousands']);
+        BichoServer::tool(PeriodSummaryTool::class, ['periodo' => 'ano', 'premio' => 2])->assertOk()->assertSee(['2026-01-01', '1802']);
+        BichoServer::tool(PeriodSummaryTool::class, ['periodo' => 'mes_anterior'])->assertOk()->assertSee(['2026-10-01', '2026-10-31']);
+        BichoServer::tool(PeriodSummaryTool::class, ['periodo' => 'decada'])->assertHasErrors();
+    }
+
     public function test_invalid_arguments_are_rejected_with_errors(): void
     {
         BichoServer::tool(ResultsOfDayTool::class, ['data' => '10/11/2026'])->assertHasErrors();
         BichoServer::tool(FrequencyTool::class, ['dias' => 0])->assertHasErrors();
-        BichoServer::tool(FrequencyTool::class, ['por' => 'milhar'])->assertHasErrors();
-        BichoServer::tool(OverdueTool::class, ['premio' => 9])->assertHasErrors();
+        BichoServer::tool(FrequencyTool::class, ['por' => 'unidade'])->assertHasErrors();
+        BichoServer::tool(OverdueTool::class, ['premio' => 11])->assertHasErrors();
         BichoServer::tool(SearchKnowledgeTool::class, ['pergunta' => ''])->assertHasErrors();
     }
 
@@ -119,7 +135,7 @@ class McpServerTest extends TestCase
 
         BichoServer::tool(SearchKnowledgeTool::class, ['pergunta' => 'o que é milhar e dezena', 'limite' => 2])
             ->assertOk()
-            ->assertSee('Termos e regras do jogo do bicho');
+            ->assertSee('Termos e regras dos resultados da Lotece');
 
         BichoServer::tool(SearchKnowledgeTool::class, ['pergunta' => 'cobra veneno', 'tipos' => ['dreams']])
             ->assertSee('Cobra (grupo 9)');

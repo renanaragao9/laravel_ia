@@ -11,9 +11,9 @@ class TrainRagCommand extends Command
 
     protected $description = 'Treina o índice local (TF-IDF) da base de conhecimento';
 
-    public function handle(TrainKnowledgeService $service): int
+    public function handle(TrainKnowledgeService $trainKnowledgeService): int
     {
-        $result = $service->run();
+        $result = $trainKnowledgeService->run();
 
         $this->info("Índice treinado: {$result['documents']} documento(s), {$result['chunks']} trecho(s), {$result['terms']} termo(s).");
 

@@ -14,6 +14,8 @@ final class Bicho
         21 => 'Touro', 22 => 'Tigre', 23 => 'Urso', 24 => 'Veado', 25 => 'Vaca',
     ];
 
+    public const MAX_PRIZES = 10;
+
     public static function normalizeThousand(string $value): string
     {
         $digits = preg_replace('/\D+/', '', $value) ?? '';
