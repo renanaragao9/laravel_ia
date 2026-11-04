@@ -2,12 +2,15 @@
 
 namespace Tests\Feature;
 
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class ExampleTest extends TestCase
 {
-    public function test_root_redirects_to_login(): void
+    use RefreshDatabase;
+
+    public function test_root_opens_the_public_blog(): void
     {
-        $this->get('/')->assertRedirect('/admin/login');
+        $this->get('/')->assertOk()->assertSee('maiores de 18 anos');
     }
 }
